@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.qubecell.ui"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk
+        android:minSdkVersion="8"
+        android:targetSdkVersion="17" />
+
+    <!-- Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    
+
+    <application
+        android:label="QubecellSDK"
+        android:theme="@android:style/Theme.Light.NoTitleBar" >
+        <activity
+            android:name="com.qubecell.ui.QubecellActivity"
+            >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.qubecell.ui.SelectOperatorActivity"
+            android:launchMode="singleTask" >
+        </activity>
+        <activity
+            android:name="com.qubecell.ui.ValidateOTPActivity"
+            android:launchMode="singleTask" >
+        </activity>
+        <activity
+            android:name="com.qubecell.ui.ResultActivity"
+            android:launchMode="singleTask" >
+        </activity>
+        
+        <!-- SMS Receiver -->
+        <receiver android:name="com.qubecell.receivers.SMSReceiver" android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DATA_SMS_RECEIVED" />
+
+                <data
+                    android:host="*"
+                    android:port="5555"
+                    android:scheme="sms" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+        <receiver android:name="com.qubecell.receivers.SMSReceiver" android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DATA_SMS_RECEIVED" />
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+                <data android:scheme="sms" />
+                <data android:port="5555" />
+            </intent-filter>
+        </receiver>
+        -->
+    </application>
+
+</manifest>

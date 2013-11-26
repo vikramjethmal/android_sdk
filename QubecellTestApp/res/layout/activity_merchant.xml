@@ -1,0 +1,53 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <RelativeLayout
+        android:id="@+resultdisplay/LogoImageViewLL"
+        android:layout_width="fill_parent"
+        android:layout_height="40dp"
+        >
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/header_image"
+            android:gravity="top" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/logo_new"
+            android:gravity="right" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/headertv"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/padding_medium"
+        android:text="Click Pay button to start Qubecell SDK" />
+    <LinearLayout
+        android:id="@+resultdisplay/ButtonLL"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_marginTop="10dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/startbutton"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:layout_below="@id/headertv"
+            android:gravity="center_horizontal"
+            android:padding="@dimen/padding_medium"
+            android:background="@drawable/pay_button"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:text="Pay" />
+    </LinearLayout>
+
+</LinearLayout>
