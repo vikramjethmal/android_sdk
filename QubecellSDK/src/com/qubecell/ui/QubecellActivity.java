@@ -6,10 +6,8 @@ package com.qubecell.ui;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
-
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -22,7 +20,6 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.TextView;
-
 import com.qubecell.beans.EventChargeRespBean;
 import com.qubecell.beans.MsisdnRespBean;
 import com.qubecell.beans.OperatorDetails;
