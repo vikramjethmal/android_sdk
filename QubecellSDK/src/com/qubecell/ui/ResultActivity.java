@@ -74,7 +74,12 @@ public class ResultActivity extends BaseActivity
 					}
 				}
 				setCurrentActivity(ApplicationActivities.CLOSE_QUBECELL);
+				Intent in = new Intent(ResultActivity.this, ValidateOTPActivity.class);
+				in.putExtra(ApplicationActivities.CLOSE_ACTIVITY, "close");
+				startActivity(in);
+				
 				finish();
+				System.exit(0);
 			}
 		});
 	}

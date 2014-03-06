@@ -217,10 +217,12 @@ public class NetworkController
 			}
 			else
 			{
-				
+				netResp.netRespCode = NetworkResponseCode.NET_EXCEPTION;
+				return netResp;
 			}
 		}
 		eLogger.info("httpPost() : Response String : "+ netResp.respStr);
+		netResp.requestType = requestType;
 		return netResp;
 	}
 	
@@ -258,7 +260,11 @@ public class NetworkController
 			//httpUrl = NetworkURL.SUBSCRIPTION_URL;
 		}
 		break;
-
+		case ServerCommand.GETLASTSTATUS_CDM:
+		{
+			httpUrl = NetworkURL.API_URL;
+		}
+		break;
 		default:
 		{
 			httpUrl = NetworkURL.API_URL;

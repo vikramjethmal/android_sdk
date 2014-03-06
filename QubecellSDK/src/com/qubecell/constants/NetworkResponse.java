@@ -13,6 +13,7 @@ public class NetworkResponse {
 	
 	public  int netRespCode = -1;
 	public  String respStr = null;
+	public int requestType =-1;
 	
 	public NetworkResponse()
 	{

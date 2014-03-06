@@ -16,6 +16,7 @@ public class ConstantStrings {
 	public static final String LOG_PATH = "logopath";
 	public static final String OPERATOR = "operator";
 	public static final String SENDOTPTXNID = "sendotptxnid";
+	public static final String API_REQUESTID = "apirequestid";
 	public static final String OTP = "otp" ; 
 	public static final String QUBECELL = "Qubecell";	
 	public static final String OK = "OK";

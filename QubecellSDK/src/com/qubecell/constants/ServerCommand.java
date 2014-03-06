@@ -20,5 +20,6 @@ public class ServerCommand {
 	public static final int CHECK_STATUS_CMD = 6;
 	public static final int MESSAGE_CMD = 7;
 	public static final int UNSUBSCRIBE_CDM = 8;
+	public static final int GETLASTSTATUS_CDM = 9;
 	public static final int NONE_CMD = -1;
 }

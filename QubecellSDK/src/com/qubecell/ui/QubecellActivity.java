@@ -9,9 +9,11 @@ import java.util.List;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import android.app.Dialog;
+import android.app.FragmentManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -19,8 +21,12 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout.LayoutParams;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import com.qubecell.beans.EventChargeRespBean;
+import com.qubecell.beans.LastAPIStatusRespBean;
 import com.qubecell.beans.MsisdnRespBean;
 import com.qubecell.beans.OperatorDetails;
 import com.qubecell.beans.OperatorsRespBean;
@@ -28,6 +34,7 @@ import com.qubecell.beans.ResponseBaseBean;
 import com.qubecell.constants.ApplicationActivities;
 import com.qubecell.constants.ConstantStrings;
 import com.qubecell.constants.IntentConstant;
+import com.qubecell.constants.LastAPIStatusServerRespCode;
 import com.qubecell.constants.MerchantData;
 import com.qubecell.constants.MobileOperators;
 import com.qubecell.constants.MsisdnServerRespCode;
@@ -51,7 +58,7 @@ import com.qubecell.xmlparser.XMLParser;
  * @author Eninov
  * 
  */
-public class QubecellActivity extends BaseActivity {
+public class QubecellActivity extends BaseActivity implements TaskFragment.TaskCallbacks{
 	private ELogger log = null;
 	private String logTag = "QubecellActivity::";
 	private Dialog permissionDialog = null;
@@ -59,9 +66,13 @@ public class QubecellActivity extends BaseActivity {
 	private Button acceptButton = null;
 	private Button cancelButton = null;
 	protected ArrayList<OperatorDetails> operatorList = null;
-
+	private boolean isAlertPermDiaVisible = false;
+	private String msisdn;
+	private TaskFragment mTaskFragment;
+	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		super.onCreate(savedInstanceState);
 		log = new ELogger();
 		log.setTag(logTag);
@@ -84,19 +95,131 @@ public class QubecellActivity extends BaseActivity {
 			log.info("onCreate() : SMSManager initialized");
 		}
 
+		FragmentManager fm = getFragmentManager();
+		mTaskFragment = (TaskFragment)fm.findFragmentByTag("task");
+
+		// If the Fragment is non-null, then it is currently being
+		// retained across a configuration change.
+		if (mTaskFragment == null) {
+			mTaskFragment = new TaskFragment();
+			fm.beginTransaction().add(mTaskFragment, "task").commit();
+		}
 		setCurrentActivity(ApplicationActivities.QUBECELL_ACTIVITY);
 		int result = setIntentData(getIntent());
 		if (result == -1) {
 			return;
 		}
+		
 		username = getUsername();
 		password = getPassword();
-		if (initializeDialog() == -1) {
-			log.error("Qubecell mendatory argument missing:: Please provide pay amount.");
-			return;
+		
+		if(savedInstanceState != null)
+		{
+			msisdn = savedInstanceState.getString(onSavedMobNumber);
+			operator = savedInstanceState.getString(onSavedOprSelected);
+			isAlertPermDiaVisible = savedInstanceState.getBoolean(isAlertPermDiaStr);
+			isProDiaVisible = savedInstanceState.getBoolean(isProDialogVisible);
+			username = savedInstanceState.getString(onSavedUsername);
+			password = savedInstanceState.getString(onSavedPassword);
+			lastAPIStatusCount = savedInstanceState.getInt(lastAPIStatusCountStr, 0);
+			boolean wiFiState = savedInstanceState.getBoolean("isWifiNetwork");
+			
+			if(isAlertPermDiaVisible)
+			{
+				if (initializeDialog() == -1) {
+					log.error("Qubecell mendatory argument missing:: Please provide pay amount.");
+					return;
+				}
+				if(wiFiState)
+				{
+					showEventChargeDialogPermission(null,ServerCommand.NONE_CMD);
+				}
+				else
+				{
+					List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
+					requestId = String.valueOf(CommonUtility
+							.getRandomNumberBetween());
+					String chargeKey = getchargeKey();
+					String md5Str = null;
+					if (chargeKey != null) {
+						md5Str = getMD5(chargeKey + requestId);
+					} else {
+						log.error("Authentication key not found..");
+					}
+					String operatorProdId = getProductId(operator);
+					requestParam.add(new BasicNameValuePair(ConstantStrings.USERNAME, username));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.PASSWORD, password));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.REQUESTID, requestId));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATION, "eventcharge"));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.PRODUCTID, operatorProdId));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.MESSAGE,"Event charge request"));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.KEY, md5Str));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.MSISDN, msisdn));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.RETURNURL, ""));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.LOG_PATH, ""));
+					requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATOR, operator));
+
+					showEventChargeDialogPermission(requestParam,ServerCommand.EVENTCHARGE_CMD);
+				}
+			}
 		}
-		detectMsisdnForOperator();
-		QubecellResult.status = PaymentResult.PAYMENT_FALIURE;
+		else
+		{
+			if (initializeDialog() == -1) {
+				log.error("Qubecell mendatory argument missing:: Please provide pay amount.");
+				return;
+			}
+			detectMsisdnForOperator();
+			QubecellResult.status = PaymentResult.PAYMENT_FALIURE;
+		}
+		
+		if(isProDiaVisible)
+			showProgressDialogue("In Progress ...");
+	}
+	
+	@Override
+	protected void onSaveInstanceState(Bundle saveData) {
+		// TODO Auto-generated method stub
+		super.onSaveInstanceState(saveData);
+		if(permissionDialog != null)
+		{
+			if(permissionDialog.isShowing())
+			{
+				isAlertPermDiaVisible = true;
+				permissionDialog.dismiss();
+				permissionDialog = null;
+			}
+			else
+			{
+				permissionDialog = null;
+				isAlertPermDiaVisible = false;
+			}
+		}
+		dismissProgressDialogue();
+		log.debug("Inside onSaveInstance.");
+		
+		if(msisdn != null)
+		{
+			saveData.putString(onSavedMobNumber, msisdn);
+		}
+		if(operator != null)
+		{
+			saveData.putString(onSavedOprSelected, operator);
+		}
+		if(username != null)
+		{
+			saveData.putString(onSavedUsername, username);
+		}
+
+		if(password != null)
+		{
+			saveData.putString(onSavedPassword, password);
+		}
+
+		saveData.putBoolean(isProDialogVisible, isProDiaVisible);
+		saveData.putBoolean(isAlertPermDiaStr, isAlertPermDiaVisible);
+		saveData.putInt(lastAPIStatusCountStr, lastAPIStatusCount);
+		saveData.putBoolean("isWifiNetwork", isWiFiActive);
 	}
 	
 	/**
@@ -110,15 +233,19 @@ public class QubecellActivity extends BaseActivity {
 			permissionDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 		}
 	
-
 		View dialogView = CommonUtility
 				.getDialogPermissionview(getApplicationContext());
 		int width = CommonUtility.getScreenWidthDimen(appContext);
 		int padding = (width*10)/100;
 		int widthWithoutPadding = width - padding; 
-		LayoutParams layoutParams = new LayoutParams(
-				widthWithoutPadding,
-				LayoutParams.WRAP_CONTENT);
+		String orientation = CommonUtility.getRotation(getApplicationContext());
+		LayoutParams layoutParams = null;
+		if(orientation.equalsIgnoreCase("landscape")){
+			int heigth = CommonUtility.getScreenHeightDimen(appContext);
+			layoutParams = new LayoutParams(widthWithoutPadding, heigth/3);
+		}else
+			layoutParams = new LayoutParams(widthWithoutPadding,LayoutParams.WRAP_CONTENT);	
+		
 		permissionDialog.setContentView(dialogView, layoutParams);
 
 		txtVw = ((TextView) dialogView
@@ -182,14 +309,19 @@ public class QubecellActivity extends BaseActivity {
 						md5Str));
 				requestParam.add(new BasicNameValuePair(
 						ConstantStrings.RETURNURL, ""));
-				makeNetworkRequest(requestParam, ServerCommand.MSISDN_CMD);
-			}
-		} else if (isWiFiActive) {
-			if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) {
-				requestFlow = false;
-				startNextActivity();
-			}
-		} else if (noDataConnection) {
+				//makeNetworkRequest(requestParam, ServerCommand.MSISDN_CMD);
+				showProgressDialogue("In Progress ...");
+				isProDiaVisible = true;
+				log.info("detectMsisdnForOperator() : Request sent to server");
+				mTaskFragment.executeRequest(requestParam, ServerCommand.MSISDN_CMD);
+							}
+		} 
+		else if (isWiFiActive) 
+		{
+			showEventChargeDialogPermission(null, ServerCommand.NONE_CMD);
+		}
+		else if (noDataConnection) 
+		{
 			if ((MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge))
 					&& (getProductId() != null)) {
 				requestFlow = true;
@@ -227,47 +359,6 @@ public class QubecellActivity extends BaseActivity {
 	}
 
 	/**
-	 * This method is used to make request to the network
-	 * 
-	 * @param requestParam
-	 * @param requestParam
-	 */
-	private void makeNetworkRequest(List<NameValuePair> requestParam,
-			final int requestType) {
-		if (requestParam == null) {
-			log.error("makeNetworkRequest() : Request Param not found.");
-			return;
-		}
-
-		Object[] reqParam = new Object[2];
-		reqParam[0] = requestParam;
-		reqParam[1] = requestType;
-
-		new AsyncClient<Object[], Object, NetworkResponse>() {
-			@Override
-			protected void onPreExecute() {
-				showProgressDialogue("In Progress. . .");
-			};
-
-			@Override
-			protected NetworkResponse doInBackground(Object[]... arg0) {
-				Object[] requestParam = arg0[0];
-				List<NameValuePair> requestP = (List<NameValuePair>) requestParam[0];
-				int reqType = (Integer) requestParam[1];
-				NetworkController nwObj = new NetworkController();
-				NetworkResponse netresp = nwObj.httpPost(requestP, reqType);
-				return netresp;
-			}
-
-			@Override
-			protected void onPostExecute(NetworkResponse result) {
-				dismissProgressDialogue();
-				handleServerResponse(result, requestType);
-			};
-		}.execute(reqParam);
-	}
-
-	/**
 	 * This method is used to handle the server response code.
 	 * 
 	 * @param result
@@ -280,11 +371,12 @@ public class QubecellActivity extends BaseActivity {
 			return;
 		}
 		int respCode = result.netRespCode;
-		log.info("handleServerResponse() : network responce code is : "
-				+ respCode);
+		log.info("handleServerResponse() : network responce code is : "+ respCode);
 
-		if (result.netRespCode == NetworkResponseCode.NET_RESP_SUCCESS) {
-			if (result.respStr == null || TextUtils.isEmpty(result.respStr)) {
+		if (result.netRespCode == NetworkResponseCode.NET_RESP_SUCCESS)
+		{
+			if (result.respStr == null || TextUtils.isEmpty(result.respStr)) 
+			{
 				log.error("handleServerResponse() : Response String is null");
 				Intent intent = new Intent(QubecellActivity.this,
 						ResultActivity.class);
@@ -300,9 +392,10 @@ public class QubecellActivity extends BaseActivity {
 			XMLParser xmlObj = XMLParser.getInstance();
 			log.info(" handleServerResponse() : Server response is : "
 					+ responseStr);
-			ResponseBaseBean msisdnRespBean = xmlObj.getResponseBean(
+			ResponseBaseBean respBean = xmlObj.getResponseBean(
 					responseStr, requestType);
-			if (msisdnRespBean == null) {
+			if (respBean == null) 
+			{
 				log.error("onPostExecute() :  Msisdn bean is found null");
 				Intent intent = new Intent(QubecellActivity.this,
 						ResultActivity.class);
@@ -314,17 +407,24 @@ public class QubecellActivity extends BaseActivity {
 				finish();
 				return;
 			}
-			if (msisdnRespBean.getResponsecode() == MsisdnServerRespCode.SUCCESS) {
+			if (respBean.getResponsecode() == MsisdnServerRespCode.SUCCESS) {
 				switch (requestType) {
 
+				case ServerCommand.GETLASTSTATUS_CDM:
+				{
+					LastAPIStatusRespBean lastAPIRespBean = (LastAPIStatusRespBean) respBean;
+					String respString = LastAPIStatusServerRespCode.getResponseString(lastAPIRespBean.getResponsecode());
+					Toast.makeText(getApplicationContext(), respString, Toast.LENGTH_LONG).show();
+				}
+				break;
 				case ServerCommand.FETCH_OPR_CMD: {
-					OperatorsRespBean oprBean = (OperatorsRespBean) msisdnRespBean;
+					OperatorsRespBean oprBean = (OperatorsRespBean) respBean;
 					operatorList = oprBean.getOperators();
 				}
 				break;
 
 				case ServerCommand.MSISDN_CMD: {
-					MsisdnRespBean msisdnBean = (MsisdnRespBean) msisdnRespBean;
+					MsisdnRespBean msisdnBean = (MsisdnRespBean) respBean;
 					List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
 					requestId = String.valueOf(CommonUtility
 							.getRandomNumberBetween());
@@ -335,7 +435,7 @@ public class QubecellActivity extends BaseActivity {
 					} else {
 						log.error("Authentication key not found..");
 					}
-					String msisdn = msisdnBean.getMsisdn();
+					msisdn = msisdnBean.getMsisdn();
 
 					if (MerchantData.flow
 							.equalsIgnoreCase(MerchantData.event_charge)) {
@@ -350,7 +450,6 @@ public class QubecellActivity extends BaseActivity {
 							}
 						} else {
 							log.error("handleServerResponse() MSISDN fail to get operator information.");
-
 						}
 						if (operatorProdId == null) {
 							log.error("handleServerResponse MSISDN operator's product id not found.");
@@ -389,7 +488,7 @@ public class QubecellActivity extends BaseActivity {
 				}
 				break;
 				case ServerCommand.EVENTCHARGE_CMD: {
-					EventChargeRespBean eveChargeRespBean = (EventChargeRespBean) msisdnRespBean;
+					EventChargeRespBean eveChargeRespBean = (EventChargeRespBean) respBean;
 					String message = getCommandErrorMessage(requestType,
 							eveChargeRespBean);
 					if (message == null) {
@@ -441,62 +540,82 @@ public class QubecellActivity extends BaseActivity {
 				break;
 				}
 			} else {
-				if (requestType == ServerCommand.CHECK_STATUS_CMD) {
-					String message = getCommandErrorMessage(requestType,
-							msisdnRespBean);
-					Intent intent = new Intent(QubecellActivity.this,
-							ResultActivity.class);
-					intent.putExtra(IntentConstant.MESSAGE, message);
-					intent.putExtra(IntentConstant.PAYMENT_RESULT,
-							PaymentResult.FALIURE);
-					startActivity(intent);
-					finish();
-				} else {
-					log.error("handleServerResponse get fail MSISDN server responce");
-					String message = getCommandErrorMessage(requestType,
-							msisdnRespBean);
-					if (MerchantData.flow
-							.equalsIgnoreCase(MerchantData.event_charge)) {
-						log.error(message);
-						Intent intent = new Intent(QubecellActivity.this,
-								SelectOperatorActivity.class);
-						intent.putExtra(IntentConstant.OPERATOR_INFO, operator);
-						String chargeKey = getchargeKey();
-						if (chargeKey != null) {
-							intent.putExtra(IntentConstant.KEY, chargeKey);
-						} else {
-							log.error("Authentication key not found...");
-							return;
-						}
-						startActivity(intent);
+				
+				// TODO If error response comes from server then invoke GetLastAPI to find the details of last requested API.
+				
+				if (requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3) 
+				{
+					// TODO Calling getLastAPI status 
+					lastAPIStatusCount = lastAPIStatusCount + 1;
+					mTaskFragment.initTaskFlag();
+					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+					
+					if(lastAPIStatusCount == 2)
+					{
+						Toast.makeText(getApplicationContext(), getCommandErrorMessage(requestType, respBean), Toast.LENGTH_LONG).show();
 						finish();
-					} else {
-						log.info("unsubscribe.");
+					}
+				} 
+				else 
+				{
+					if(lastAPIStatusCount == 0)
+					{
+						lastAPIStatusCount = lastAPIStatusCount + 1;
+						mTaskFragment.initTaskFlag();
+						mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+					}
+					else
+					{
+						log.error("handleServerResponse get fail MSISDN server responce");
+						String message = getCommandErrorMessage(requestType,respBean);
+						if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) 
+						{
+							log.error(message);
+							Intent intent = new Intent(QubecellActivity.this,SelectOperatorActivity.class);
+							intent.putExtra(IntentConstant.OPERATOR_INFO, operator);
+							String chargeKey = getchargeKey();
+							if (chargeKey != null) 
+							{
+								intent.putExtra(IntentConstant.KEY, chargeKey);
+							}
+							else 
+							{
+								log.error("Authentication key not found...");
+								return;
+							}
+							startActivity(intent);
+							finish();
+						}
+						else 
+						{
+							log.info("unsubscribe.");
+						}
 					}
 				}
 			}
 		} else {
 			log.error("handleServerResponse Fail to get MSISDN server responce");
-			if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) {
-				if (result.netRespCode == NetworkResponseCode.NET_REQ_TIMEOUT) {
+			if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) 
+			{
+				if (result.netRespCode == NetworkResponseCode.NET_REQ_TIMEOUT) 
+				{
 					log.info("handleServerResponse() : Starting SelectOperator Screen because of Connection Time Out or Socket Time Out");
 					startNextActivity();
-				} else {
-					Intent intent = new Intent(QubecellActivity.this,
-							ResultActivity.class);
-					intent.putExtra(IntentConstant.PAYMENT_RESULT,
-							PaymentResult.FALIURE);
-					intent.putExtra(IntentConstant.MESSAGE,
-							ConstantStrings.TRANSACTION_CANNOT_PROCESS);
-					startActivity(intent);
-					finish();
+					
 				}
-			} else {
+				else 
+				{
+					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+				}
+			}
+			else 
+			{
 				log.info("unsubscribe.");
 			}
 		}
 	}
 
+	 
 	/**
 	 * This method is used to display the permission dialog to user for
 	 * accepting and initiating the billing process or else cancel and quit.
@@ -505,8 +624,11 @@ public class QubecellActivity extends BaseActivity {
 	 * @param apiUrl
 	 * @param requestParam
 	 */
-	private void showEventChargeDialogPermission(
-			final List<NameValuePair> requestParam, final int eventchargeCmd) {
+	private void showEventChargeDialogPermission(final List<NameValuePair> requestParam, final int eventchargeCmd) {
+		if (initializeDialog() == -1) {
+			log.error("showEventChargeDialogPermission() :: Initializing Progress Dialog Failed.");
+			return;
+		}
 		if (permissionDialog == null)
 			return;
 		boolean flag = permissionDialog.isShowing();
@@ -521,7 +643,15 @@ public class QubecellActivity extends BaseActivity {
 			@Override
 			public void onClick(View arg0) {
 				permissionDialog.dismiss();
-				makeNetworkRequest(requestParam, eventchargeCmd);
+				if(eventchargeCmd == ServerCommand.NONE_CMD)
+				{
+					if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) {
+						requestFlow = false;
+						startNextActivity();
+					}
+				}
+				else
+					mTaskFragment.executeRequest(requestParam, eventchargeCmd);
 			}
 		});
 
@@ -540,6 +670,12 @@ public class QubecellActivity extends BaseActivity {
 	 * Wi-Fi, or No-data connection.
 	 */
 	protected void startNextActivity() {
+		dismissProgressDialogue();
+		if(permissionDialog != null)
+		{
+			permissionDialog = null;
+			isAlertPermDiaVisible = false;
+		}
 		if (isGPRSActive) {
 			Intent intent = new Intent(QubecellActivity.this,
 					SelectOperatorActivity.class);
@@ -554,6 +690,7 @@ public class QubecellActivity extends BaseActivity {
 			startActivity(intent);
 			finish();
 		} else if (isWiFiActive) {
+			
 			Intent intent = new Intent(QubecellActivity.this,
 					SelectOperatorActivity.class);
 			intent.putExtra(IntentConstant.OPERATOR_INFO, operator);
@@ -594,4 +731,32 @@ public class QubecellActivity extends BaseActivity {
 			finish();
 		}
 	}
+	
+		// The four methods below are called by the TaskFragment when new
+		// progress updates or results are available. The MainActivity 
+		// should respond by updating its UI to indicate the change.
+
+		@Override
+		public void onPreExecute() {
+			showProgressDialogue("In Progress. . .");
+			isProDiaVisible = true;
+		}
+
+		@Override
+		public void onProgressUpdate(int percent) {
+			// TODO Not using this method currently
+		}
+
+		@Override
+		public void onCancelled() {
+			// TODO Not using this method currently
+		}
+
+		@Override
+		public void onPostExecute(NetworkResponse result) {
+			dismissProgressDialogue();
+			isProDiaVisible = false;
+			handleServerResponse(result, result.requestType);
+		}
+	
 }

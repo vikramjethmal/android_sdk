@@ -96,6 +96,8 @@ public class QubecellSMSManager {
 	 */
 	public boolean sendMessage(Context appContext, String message, String address, boolean isBinary)
 	{
+		if(log == null)
+			initLog();
 		SmsManager manager = SmsManager.getDefault();
         PendingIntent piSend = PendingIntent.getBroadcast(appContext, 0, new Intent(SMS_SENT), 0);
         PendingIntent piDelivered = PendingIntent.getBroadcast(appContext, 0, new Intent(SMS_DELIVERED), 0);

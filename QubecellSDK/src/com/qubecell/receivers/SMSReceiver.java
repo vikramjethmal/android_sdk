@@ -65,7 +65,7 @@ public class SMSReceiver extends BroadcastReceiver
 				Intent resultIntent = new Intent(context, ResultActivity.class);
 				resultIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				resultIntent.putExtra(IntentConstant.CLOSE_PROGRESSBAR, "true");
-				if(msgBody.contains(String.valueOf(MsisdnServerRespCode.SUCCESS)))
+				if(msgBody.contains("OTP"))
 				{			
 					resultIntent.putExtra(IntentConstant.MESSAGE, "Thank you for your transaction.!");
 					resultIntent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.SUCCESS);

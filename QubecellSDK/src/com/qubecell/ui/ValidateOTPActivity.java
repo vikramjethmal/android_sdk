@@ -10,6 +10,7 @@ import java.util.List;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
+import android.app.FragmentManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
@@ -52,7 +53,7 @@ import com.qubecell.xmlparser.XMLParser;
  * @author Eninov
  *
  */
-public class ValidateOTPActivity extends BaseActivity
+public class ValidateOTPActivity extends BaseActivity implements TaskFragment.TaskCallbacks
 {
 	private Button nextButton = null;
 	private Button backButton = null;
@@ -64,6 +65,7 @@ public class ValidateOTPActivity extends BaseActivity
 	private int resendCount = 0;
 	private String logTag = "ValidateOTPActivity";
 	private View validateOTPView = null;
+	private TaskFragment mTaskFragment;
 	private String onSavedOtpCode = "otpCodeKey";
 	private String onSavedResendOtpCount = "otpCodeCountKey";
 	private int MAX_COUNT = 2;
@@ -82,11 +84,26 @@ public class ValidateOTPActivity extends BaseActivity
 		{
 			savedOtpCode = savedInstanceState.getString(onSavedOtpCode);
 			resendCount = savedInstanceState.getInt(onSavedResendOtpCount);
+			lastAPIStatusCount = savedInstanceState.getInt(lastAPIStatusCountStr);
+			isProDiaVisible = savedInstanceState.getBoolean(isProDialogVisible);
 		}
+
+		FragmentManager fm = getFragmentManager();
+		mTaskFragment = (TaskFragment)fm.findFragmentByTag("task");
+
+		// If the Fragment is non-null, then it is currently being
+		// retained across a configuration change.
+		if (mTaskFragment == null) {
+			mTaskFragment = new TaskFragment();
+			fm.beginTransaction().add(mTaskFragment, "task").commit();
+		}
+
 		initializeWidget(savedOtpCode);
 		handleItemClickListener();
 		hideKeyboardFromScreen();
 		setCurrentActivity(ApplicationActivities.VALIDATE_OTP_ACTIVITY);
+		if(isProDiaVisible)
+			showProgressDialogue("In Progress. . .");
 	}
 
 	/**
@@ -103,17 +120,55 @@ public class ValidateOTPActivity extends BaseActivity
 		}
 		int resendOtpCount = resendCount;
 		saveData.putInt(onSavedResendOtpCount, resendOtpCount);
+		saveData.putInt(lastAPIStatusCountStr, lastAPIStatusCount);
+		saveData.putBoolean(isProDialogVisible, isProDiaVisible);
 		return;
 	}
 
 	@Override
+	protected void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		
+		log.info("OnNewIntent() : Inside ");
+		if(intent != null)
+		{
+			log.info("OnNewIntent() : Intent is not null ");
+			String action = intent.getStringExtra(ApplicationActivities.CLOSE_ACTIVITY);
+			if(!TextUtils.isEmpty(action))
+			{
+				if(action.equalsIgnoreCase("close"))
+				{
+					log.info("OnNewIntent() : Finishing ValidateOTP activity ");
+					finish();
+				}
+			}
+		}
+	}
+	
+	@Override
 	protected void onResume()
 	{
 		super.onResume();
-		if(getCurrentActivity().equalsIgnoreCase(ApplicationActivities.CLOSE_ACTIVITY))
+		log.info("onResume() : Inside ");
+		Intent intent = this.getIntent();
+		if (intent != null) 
+		{
+			log.info("onResume() : Intent is not null ");
+			String action = intent.getStringExtra(ApplicationActivities.CLOSE_ACTIVITY);
+			if(!TextUtils.isEmpty(action))
+			{
+				if(action.equalsIgnoreCase("close"))
+				{
+					log.info("onResume() : Finishing ValidateOTP activity ");
+					finish();
+				}
+			}
+		}
+		/*if(getCurrentActivity().equalsIgnoreCase(ApplicationActivities.CLOSE_ACTIVITY))
 		{
 			this.finish();
-		}
+		}*/
+		
 		return;
 	}
 
@@ -154,7 +209,9 @@ public class ValidateOTPActivity extends BaseActivity
 		operator = intent.getStringExtra(IntentConstant.OPERATOR_INFO);
 		username = getUsername(); 
 		password = getPassword();
-		return;
+		//log.info("getTransIntentData() TransId : "+transactionId+" , MSISDN : "+ msisdn+", Operator : "+operator);
+		//log.info("getTransIntentData() Username : "+ username +", Password  : " +password);
+		//return;
 	}
 
 	/**
@@ -252,7 +309,7 @@ public class ValidateOTPActivity extends BaseActivity
 						requestParam.add(new BasicNameValuePair(ConstantStrings.RETURNURL, ""));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.LOG_PATH, ""));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATOR, operator));
-						makeNetworkRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
+						mTaskFragment.executeRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
 					}
 					else
 					{
@@ -264,7 +321,7 @@ public class ValidateOTPActivity extends BaseActivity
 						requestParam.add(new BasicNameValuePair(ConstantStrings.MESSAGE, ""));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.KEY, md5Str));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.MSISDN, msisdn));
-						makeNetworkRequest(requestParam, ServerCommand.SENDOTP_CMD);
+						mTaskFragment.executeRequest(requestParam, ServerCommand.SENDOTP_CMD);
 					}
 				}
 			}
@@ -294,6 +351,10 @@ public class ValidateOTPActivity extends BaseActivity
 			@Override
 			public void onClick(View arg0) 
 			{
+				log.info("Inside Next Button Click Event");
+				
+				dismissProgressDialogue();
+				isProDiaVisible = false;
 				String validateCodeStr = validateCode.getText().toString();
 				if(!TextUtils.isEmpty(validateCodeStr))
 				{
@@ -314,6 +375,7 @@ public class ValidateOTPActivity extends BaseActivity
 						setCurrentActivity(ApplicationActivities.CLOSE_ACTIVITY);
 						setReceiveSmsonPort(0);
 						showProgressDialogue("In Progress. . .");
+						isProDiaVisible = true;
 					}
 					else
 					{
@@ -344,7 +406,8 @@ public class ValidateOTPActivity extends BaseActivity
 						requestParam.add(new BasicNameValuePair(ConstantStrings.OTP, validateCodeStr));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.KEY, md5Str));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.MSISDN, msisdn));
-						makeNetworkRequest(requestParam, ServerCommand.VALIDATEOTP_CMD);
+						mTaskFragment.executeRequest(requestParam, ServerCommand.VALIDATEOTP_CMD);
+
 					}
 					validateCode.setText("");
 				}
@@ -364,45 +427,6 @@ public class ValidateOTPActivity extends BaseActivity
 		if(log == null)
 			log = new ELogger();
 		log.setTag(logTag);
-	}
-
-
-	/**
-	 * This method is used to make request to the network
-	 * @param requestParam 
-	 * @param requestParam
-	 */
-	private void makeNetworkRequest(final List<NameValuePair> requestParam, final int requestType) 
-	{
-		if(requestParam == null)
-		{
-			log.error("makeNetworkRequest() : Request Param is found null");
-			return ;
-		}
-		new AsyncClient<Object[], Object, NetworkResponse>() 
-		{
-			@Override
-			protected void onPreExecute() 
-			{
-				showProgressDialogue("In Progress. . .");
-			};
-
-			@Override
-			protected NetworkResponse doInBackground(Object[]... arg0) 
-			{
-				NetworkController nwObj = new NetworkController();
-				NetworkResponse netresp = nwObj.httpPost(requestParam, requestType);
-				return netresp;
-			}
-
-			@Override
-			protected void onPostExecute(NetworkResponse result) 
-			{
-				dismissProgressDialogue();
-				handleServerResponse(result,requestType);
-			};
-
-		}.execute();
 	}
 
 
@@ -472,8 +496,9 @@ public class ValidateOTPActivity extends BaseActivity
 							log.error("Authentication key not found.");
 						}
 						String productId;
-						if((operator != null) && (msisdn != null))
+						if(!TextUtils.isEmpty(operator) && !TextUtils.isEmpty(msisdn))
 						{
+							log.info("handleServerResponse() : Operator and Msisdn is not null");
 							productId = getProductId(operator);
 							if(productId == null)
 							{
@@ -483,6 +508,7 @@ public class ValidateOTPActivity extends BaseActivity
 						}
 						else
 						{
+							log.info("handleServerResponse() : Operator or Msisdn is null");
 							return;
 						}
 						setChargedAmount("0");
@@ -497,7 +523,8 @@ public class ValidateOTPActivity extends BaseActivity
 						requestParam.add(new BasicNameValuePair(ConstantStrings.MSISDN, msisdn));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.RETURNURL, ""));
 						requestParam.add(new BasicNameValuePair(ConstantStrings.LOG_PATH, ""));
-						makeNetworkRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
+						mTaskFragment.initTaskFlag();
+						mTaskFragment.executeRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
 					}
 				}
 				break;
@@ -564,11 +591,49 @@ public class ValidateOTPActivity extends BaseActivity
 		}
 		else
 		{
-			Intent intent = new Intent(ValidateOTPActivity.this, ResultActivity.class);
-			intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
-			intent.putExtra(IntentConstant.MESSAGE, ConstantStrings.TRANSACTION_CANNOT_PROCESS);
-			startActivity(intent);
-			finish();
+
+			if (requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3) 
+			{
+				// TODO Calling getLastAPI status 
+				lastAPIStatusCount = lastAPIStatusCount + 1;
+				mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+			}
+			else
+			{
+				Intent intent = new Intent(ValidateOTPActivity.this, ResultActivity.class);
+				intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
+				intent.putExtra(IntentConstant.MESSAGE, ConstantStrings.TRANSACTION_CANNOT_PROCESS);
+				startActivity(intent);
+				finish();
+			}
 		}
 	}
+
+	// The four methods below are called by the TaskFragment when new
+	// progress updates or results are available. The MainActivity 
+	// should respond by updating its UI to indicate the change.
+
+	@Override
+	public void onPreExecute() {
+		showProgressDialogue("In Progress. . .");
+		isProDiaVisible = true;
+	}
+
+	@Override
+	public void onProgressUpdate(int percent) {
+		// TODO Not using this method currently
+	}
+
+	@Override
+	public void onCancelled() {
+		// TODO Not using this method currently
+	}
+
+	@Override
+	public void onPostExecute(NetworkResponse result) {
+		dismissProgressDialogue();
+		isProDiaVisible = false;
+		handleServerResponse(result, result.requestType);
+	}
+
 }

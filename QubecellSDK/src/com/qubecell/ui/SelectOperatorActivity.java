@@ -11,11 +11,14 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
 import android.R;
+import android.app.FragmentManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.Selection;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
@@ -25,13 +28,16 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.qubecell.beans.EventChargeRespBean;
+import com.qubecell.beans.LastAPIStatusRespBean;
 import com.qubecell.beans.ResponseBaseBean;
 import com.qubecell.beans.SendOTPRespBean;
 import com.qubecell.constants.ApplicationActivities;
 import com.qubecell.constants.ConstantStrings;
 import com.qubecell.constants.IntentConstant;
+import com.qubecell.constants.LastAPIStatusServerRespCode;
 import com.qubecell.constants.MobileOperators;
 import com.qubecell.constants.MsisdnServerRespCode;
 import com.qubecell.constants.NetworkResponse;
@@ -40,8 +46,6 @@ import com.qubecell.constants.PaymentResult;
 import com.qubecell.constants.ServerCommand;
 import com.qubecell.constants.WidgetsTagName;
 import com.qubecell.elogger.ELogger;
-import com.qubecell.network.AsyncClient;
-import com.qubecell.network.NetworkController;
 import com.qubecell.utility.CommonUtility;
 import com.qubecell.xmlparser.XMLParser;
 
@@ -50,7 +54,7 @@ import com.qubecell.xmlparser.XMLParser;
  * @author Eninov
  *
  */
-public class SelectOperatorActivity extends BaseActivity
+public class SelectOperatorActivity extends BaseActivity implements TaskFragment.TaskCallbacks
 {
 	private View.OnClickListener clickListener = null;
 	private String operatorSelected = null;
@@ -66,8 +70,8 @@ public class SelectOperatorActivity extends BaseActivity
 	private String productIdIdea = null;
 	private String productIdTata = null;
 	private View operatorLayoutView = null;
-	private String onSavedMobNumber = "mobNumberTag";
-	private String onSavedOprSelected = "oprSelectedTag";
+	private TaskFragment mTaskFragment;
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) 
 	{
@@ -77,12 +81,29 @@ public class SelectOperatorActivity extends BaseActivity
 		setContentView(operatorLayoutView);
 		log = new ELogger();
 		log.setTag(logTag);
+		log.info("onCreate() : Inside ");
 		String savedMobNumber = null;
 		String savedOperator = null;
 		if(savedInstanceState != null)
 		{
 			savedMobNumber = savedInstanceState.getString(onSavedMobNumber);
 			savedOperator = savedInstanceState.getString(onSavedOprSelected);
+			isProDiaVisible = savedInstanceState.getBoolean(isProDialogVisible);
+			msisdn = savedMobNumber;
+			operatorSelected = savedOperator;
+			username = savedInstanceState.getString(onSavedUsername);
+			password = savedInstanceState.getString(onSavedPassword);
+			lastAPIStatusCount = savedInstanceState.getInt(lastAPIStatusCountStr);
+		}
+
+		FragmentManager fm = getFragmentManager();
+		mTaskFragment = (TaskFragment)fm.findFragmentByTag("task");
+
+		// If the Fragment is non-null, then it is currently being
+		// retained across a configuration change.
+		if (mTaskFragment == null) {
+			mTaskFragment = new TaskFragment();
+			fm.beginTransaction().add(mTaskFragment, "task").commit();
 		}
 
 		initializeWidget(savedMobNumber);
@@ -94,6 +115,10 @@ public class SelectOperatorActivity extends BaseActivity
 		productIdTata = getTataProductId();
 		productIdVoda = getVodaProductId();
 		setCurrentActivity(ApplicationActivities.SELECT_OPERATOR_ACTIVITY);
+		if(isProDiaVisible)
+		{
+			showProgressDialogue("In Progress. . .");
+		}
 	}
 
 	/**
@@ -103,6 +128,7 @@ public class SelectOperatorActivity extends BaseActivity
 	@Override
 	protected void onSaveInstanceState(Bundle saveData) {
 		super.onSaveInstanceState(saveData);
+		dismissProgressDialogue();
 		log.debug("Inside onSaveInstance.");
 		String mobMumber = ((EditText)operatorLayoutView.findViewWithTag(WidgetsTagName.OPERATOR_EDITTEXT)).getText().toString();
 		if(mobMumber != null)
@@ -113,6 +139,18 @@ public class SelectOperatorActivity extends BaseActivity
 		{
 			saveData.putString(onSavedOprSelected, operatorSelected);
 		}
+		if(username != null)
+		{
+			saveData.putString(onSavedUsername, username);
+		}
+
+		if(password != null)
+		{
+			saveData.putString(onSavedPassword, password);
+		}
+
+		saveData.putBoolean(isProDialogVisible, isProDiaVisible);
+		saveData.putInt(lastAPIStatusCountStr, lastAPIStatusCount);
 	}
 
 
@@ -164,7 +202,7 @@ public class SelectOperatorActivity extends BaseActivity
 					requestParam.add(new BasicNameValuePair(ConstantStrings.RETURNURL, ""));
 					requestParam.add(new BasicNameValuePair(ConstantStrings.LOG_PATH, ""));
 					requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATOR, operatorSelected));
-					makeNetworkRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
+					mTaskFragment.executeRequest(requestParam, ServerCommand.EVENTCHARGE_CMD);
 				}
 				else
 				{
@@ -176,7 +214,7 @@ public class SelectOperatorActivity extends BaseActivity
 					requestParam.add(new BasicNameValuePair(ConstantStrings.MESSAGE, ""));
 					requestParam.add(new BasicNameValuePair(ConstantStrings.KEY, md5Str));
 					requestParam.add(new BasicNameValuePair(ConstantStrings.MSISDN, msisdn));
-					makeNetworkRequest(requestParam, ServerCommand.SENDOTP_CMD);
+					mTaskFragment.executeRequest(requestParam, ServerCommand.SENDOTP_CMD);
 				}
 			}
 			else if (msisdn.length() == (MOBILE_LENGTH-2))
@@ -233,46 +271,6 @@ public class SelectOperatorActivity extends BaseActivity
 				onNextButtonClick();
 			}
 		});
-	}
-
-
-	/**
-	 * This method is used to make request to the network
-	 * @param requestParam 
-	 * @param requestParam
-	 */
-	private void makeNetworkRequest(final List<NameValuePair> requestParam, final int requestType) 
-	{
-		if(requestParam == null)
-		{
-			log.error("makeNetworkRequest() : Request Param is found null");
-			return ;
-		}
-
-		new AsyncClient<Object[], Object, NetworkResponse>() 
-		{
-			@Override
-			protected void onPreExecute() 
-			{
-				showProgressDialogue("In Progress. . .");
-			};
-
-			@Override
-			protected NetworkResponse doInBackground(Object[]... arg0) 
-			{
-				NetworkController nwObj = new NetworkController();
-				NetworkResponse netresp = nwObj.httpPost(requestParam, requestType);
-				return netresp;
-			}
-
-			@Override
-			protected void onPostExecute(NetworkResponse result) 
-			{
-				dismissProgressDialogue();
-				handleServerResponse(result, requestType);
-			};
-
-		}.execute();
 	}
 
 
@@ -361,7 +359,15 @@ public class SelectOperatorActivity extends BaseActivity
 					intent.putExtra(IntentConstant.TRANSACTION_ID, sendOTPRespBean.getTxnid());
 					intent.putExtra(IntentConstant.MSISDN, msisdn);
 					startActivity(intent);
+					
 					finish();
+				}
+				break;
+				case ServerCommand.GETLASTSTATUS_CDM:
+				{
+					LastAPIStatusRespBean lastAPIRespBean = (LastAPIStatusRespBean) respBean;
+					String respString = LastAPIStatusServerRespCode.getResponseString(lastAPIRespBean.getResponsecode());
+					Toast.makeText(getApplicationContext(), respString, Toast.LENGTH_LONG).show();
 				}
 				break;
 				case ServerCommand.FETCH_OPR_CMD:
@@ -375,23 +381,71 @@ public class SelectOperatorActivity extends BaseActivity
 			}
 			else
 			{
-				log.info("response code is failed for request type : " + String.valueOf(requestType));
-				log.info("and response code is " + String.valueOf(respBean.getResponsecode()));
-				String message = getCommandErrorMessage(requestType,respBean);
-				Intent intent = new Intent(SelectOperatorActivity.this, ResultActivity.class);
-				intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
-				intent.putExtra(IntentConstant.MESSAGE, message);
-				startActivity(intent);
-				finish();
+				if(lastAPIStatusCount < 3)
+				{
+					lastAPIStatusCount = lastAPIStatusCount + 1;
+					mTaskFragment.initTaskFlag();
+					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+				
+					if(lastAPIStatusCount == 2)
+					{
+						Toast.makeText(getApplicationContext(), getCommandErrorMessage(requestType, respBean), Toast.LENGTH_LONG).show();
+						finish();
+					}
+				}
+				else
+				{
+					if(lastAPIStatusCount == 0)
+					{
+						lastAPIStatusCount = lastAPIStatusCount + 1;
+						mTaskFragment.initTaskFlag();
+						mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+					}
+					else
+					{
+					log.info("response code is failed for request type : " + String.valueOf(requestType));
+					log.info("and response code is " + String.valueOf(respBean.getResponsecode()));
+					String message = getCommandErrorMessage(requestType,respBean);
+					Intent intent = new Intent(SelectOperatorActivity.this, ResultActivity.class);
+					intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
+					intent.putExtra(IntentConstant.MESSAGE, message);
+					startActivity(intent);
+					finish();
+					}
+				}
 			}
 		}
 		else
 		{
-			Intent intent = new Intent(SelectOperatorActivity.this, ResultActivity.class);
-			intent.putExtra(IntentConstant.MESSAGE, ConstantStrings.TRANSACTION_CANNOT_PROCESS);
-			intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
-			startActivity(intent);
-			finish();
+			if(requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3)
+			{
+				// TODO Calling getLastAPI status 
+				lastAPIStatusCount = lastAPIStatusCount + 1;
+				mTaskFragment.initTaskFlag();
+				mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+				if(lastAPIStatusCount == 2)
+				{
+					Toast.makeText(getApplicationContext(), "Network Error", Toast.LENGTH_LONG).show();
+					finish();
+				}
+			}
+			else
+			{
+				if(lastAPIStatusCount == 0)
+				{
+					lastAPIStatusCount = lastAPIStatusCount + 1;
+					mTaskFragment.initTaskFlag();
+					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
+				}
+				else
+				{
+					Intent intent = new Intent(SelectOperatorActivity.this, ResultActivity.class);
+					intent.putExtra(IntentConstant.MESSAGE, ConstantStrings.TRANSACTION_CANNOT_PROCESS);
+					intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
+					startActivity(intent);
+					finish();
+				}
+			}
 		}
 	}
 
@@ -419,6 +473,8 @@ public class SelectOperatorActivity extends BaseActivity
 		{		
 			mobileEditText.setText("91");
 		}
+		Editable et = mobileEditText.getText();
+		Selection.setSelection(et, et.toString().length());
 		if(getLogoImage() != null)
 		{ 
 			ImageView logoImageView = ((ImageView)operatorLayoutView.findViewWithTag(WidgetsTagName.OPERATOR_TOPHEADER_IMAGEVIEW));
@@ -501,5 +557,32 @@ public class SelectOperatorActivity extends BaseActivity
 			rs.addView(radioBtn);
 		}
 		operatorLL.addView(rs);
+	}
+
+	// The four methods below are called by the TaskFragment when new
+	// progress updates or results are available. The MainActivity 
+	// should respond by updating its UI to indicate the change.
+
+	@Override
+	public void onPreExecute() {
+		showProgressDialogue("In Progress. . .");
+		isProDiaVisible = true;
+	}
+
+	@Override
+	public void onProgressUpdate(int percent) {
+		// TODO Not using this method currently
+	}
+
+	@Override
+	public void onCancelled() {
+		// TODO Not using this method currently
+	}
+
+	@Override
+	public void onPostExecute(NetworkResponse result) {
+		dismissProgressDialogue();
+		isProDiaVisible = false;
+		handleServerResponse(result, result.requestType);
 	}
 }

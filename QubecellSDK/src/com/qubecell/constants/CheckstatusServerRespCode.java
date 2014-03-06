@@ -38,7 +38,7 @@ public class CheckstatusServerRespCode {
 	 * @param responseCode
 	 * @return
 	 */
-	public static String getResponseString(Context appContext,int responseCode)
+	public static String getResponseString(int responseCode)
 	{
 		String errorString = null;
 

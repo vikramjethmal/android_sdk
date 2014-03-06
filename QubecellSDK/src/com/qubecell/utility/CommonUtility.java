@@ -18,8 +18,10 @@ import android.text.SpannableString;
 import android.text.style.UnderlineSpan;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
+import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
@@ -30,6 +32,7 @@ import android.widget.TextView;
 
 import com.qubecell.constants.ConstantStrings;
 import com.qubecell.constants.WidgetsTagName;
+import com.qubecell.ui.BaseActivity;
 
 /**
  * The CommonUtility class has all the common functions which is required by all the modules of the application.
@@ -64,6 +67,30 @@ public class CommonUtility {
 		else
 		{
 			return isConnected;
+		}
+	}
+
+	/**
+	 * This method is used to get the current orientation of the device.
+	 * @param context
+	 * @return
+	 */
+	public static String getRotation(Context context)
+	{
+		final int rotation = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getOrientation();
+		switch (rotation) {
+		case Surface.ROTATION_0:
+			return "portrait";
+		case Surface.ROTATION_90:
+			return "landscape";
+		case Surface.ROTATION_180:
+			return "portrait";
+			//return "reverse portrait";
+		default:
+		{
+			return "landscape";
+			//return "reverse landscape";
+		}
 		}
 	}
 
@@ -118,6 +145,8 @@ public class CommonUtility {
 				rightNow.get(Calendar.DST_OFFSET);
 		long sinceMidnight = (rightNow.getTimeInMillis() + offset) %
 				(24 * 60 * 60 * 1000);
+
+		BaseActivity.lastRequestId = sinceMidnight;
 		return sinceMidnight ;
 	}
 
@@ -562,115 +591,122 @@ public class CommonUtility {
 	 * @param appContext
 	 * @return
 	 */
-	 public static View getDialogPermissionview(Context appContext)
-	 {
-	  int height = getScreenHeightDimen(appContext);
-	  int width = getScreenWidthDimen(appContext);
-	  if (dialogIcon == null)
-	  {
-	   dialogIcon = ImageBase64.getDialogDrawable(appContext);
-	  }
+	public static View getDialogPermissionview(Context appContext)
+	{
+		int height = getScreenHeightDimen(appContext);
+		int width = getScreenWidthDimen(appContext);
+		String orientation = getRotation(appContext);
+		if (dialogIcon == null)
+		{
+			dialogIcon = ImageBase64.getDialogDrawable(appContext);
+		}
 
-	  LinearLayout parentView = new LinearLayout(appContext);
-	  parentView.setTag(WidgetsTagName.DIALOG_LAYOUT);
-	  parentView.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-	  parentView.setOrientation(LinearLayout.VERTICAL);
-	  parentView.setBackgroundColor(Color.DKGRAY);
+		LinearLayout parentView = new LinearLayout(appContext);
+		parentView.setTag(WidgetsTagName.DIALOG_LAYOUT);
+		parentView.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
+		parentView.setOrientation(LinearLayout.VERTICAL);
+		parentView.setBackgroundColor(Color.DKGRAY);
 
-	  LinearLayout tittleSectionInnerView = new LinearLayout(appContext);
-	  tittleSectionInnerView.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT));
-	  tittleSectionInnerView.setOrientation(LinearLayout.HORIZONTAL);
-	  tittleSectionInnerView.setBackgroundColor(Color.BLACK);
+		LinearLayout tittleSectionInnerView = new LinearLayout(appContext);
+		tittleSectionInnerView.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT));
+		tittleSectionInnerView.setOrientation(LinearLayout.HORIZONTAL);
+		tittleSectionInnerView.setBackgroundColor(Color.BLACK);
 
-	  TextView tittleTV = new TextView(appContext);
-	  tittleTV.setTag(WidgetsTagName.DIALOG_TITTLE);
-	  tittleTV.setText(ConstantStrings.QUBECELL);
-	  tittleTV.setTextColor(Color.WHITE);
-	  tittleTV.setTextSize(20);
-	  tittleTV.setBackgroundColor(Color.BLACK);
-	  tittleTV.setPadding((int)(0.01*width), (int)(0.02 * height), 0, (int)(0.02*height));
-	  tittleSectionInnerView.addView(tittleTV);
+		TextView tittleTV = new TextView(appContext);
+		tittleTV.setTag(WidgetsTagName.DIALOG_TITTLE);
+		tittleTV.setText(ConstantStrings.QUBECELL);
+		tittleTV.setTextColor(Color.WHITE);
+		tittleTV.setTextSize(20);
+		tittleTV.setBackgroundColor(Color.BLACK);
+		tittleTV.setPadding((int)(0.01*width), (int)(0.02 * height), 0, (int)(0.02*height));
+		tittleSectionInnerView.addView(tittleTV);
 
-	  LinearLayout firstSectionView = new LinearLayout(appContext);
-	  LinearLayout.LayoutParams layoutparam1 = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT);
-	  firstSectionView.setOrientation(LinearLayout.HORIZONTAL);
-	  firstSectionView.setWeightSum(1f);
-	  
-	  layoutparam1 = new LinearLayout.LayoutParams(0,LayoutParams.FILL_PARENT,0.2f);
-	  layoutparam1.setMargins(5, 5, 0, 2);
-	  LinearLayout firstSectionLeftView = new LinearLayout(appContext);
-	  firstSectionLeftView.setLayoutParams(layoutparam1);
-	  firstSectionLeftView.setOrientation(LinearLayout.VERTICAL);
+		LinearLayout firstSectionView = new LinearLayout(appContext);
+		LinearLayout.LayoutParams layoutparam1 = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT);
+		firstSectionView.setOrientation(LinearLayout.HORIZONTAL);
+		firstSectionView.setWeightSum(1f);
 
-	  ImageView iv = new ImageView(appContext);
-	  iv.setTag(WidgetsTagName.DIALOG_LOGO);
-	  iv.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.FILL_PARENT));
-	  iv.setBackgroundColor(Color.DKGRAY);
-	  iv.setBackgroundDrawable(dialogIcon);
-	  firstSectionLeftView.addView(iv); 
-	  
-	  layoutparam1 = new LinearLayout.LayoutParams(0,LayoutParams.WRAP_CONTENT,0.8f);
-	  LinearLayout firstSectionRightView = new LinearLayout(appContext);
-	  firstSectionRightView.setLayoutParams(layoutparam1);
-	  firstSectionRightView.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
-	  firstSectionRightView.setOrientation(LinearLayout.VERTICAL);
-	  
-	  TextView dialogHeaderTV = new TextView(appContext);
-	  dialogHeaderTV.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT));
-	  dialogHeaderTV.setTag(WidgetsTagName.DIALOG_TOPHEADER_TEXTVIEW);
-	  dialogHeaderTV.setText(ConstantStrings.PAY_RUPEES);
-	  dialogHeaderTV.setTextSize(20);
-	  dialogHeaderTV.setTypeface(Typeface.DEFAULT_BOLD);
-	  dialogHeaderTV.setTextColor(Color.WHITE);
-	  firstSectionRightView.addView(dialogHeaderTV);
+		layoutparam1 = new LinearLayout.LayoutParams(0,LayoutParams.FILL_PARENT,0.2f);
+		layoutparam1.setMargins(5, 5, 0, 2);
+		LinearLayout firstSectionLeftView = new LinearLayout(appContext);
+		firstSectionLeftView.setLayoutParams(layoutparam1);
+		firstSectionLeftView.setOrientation(LinearLayout.VERTICAL);
 
-	  TextView dialogDetailsTV = new TextView(appContext);
-	  dialogDetailsTV.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT));
-	  dialogDetailsTV.setTag(WidgetsTagName.DIALOG_TOPHEADER_DETAIL_TEXTVIEW);
-	  dialogDetailsTV.setText(ConstantStrings.THISWILL_CHARGE_YOU_ACCOUNT);
-	  dialogDetailsTV.setTextSize(12);
-	  dialogDetailsTV.setTypeface(Typeface.DEFAULT_BOLD);
-	  dialogDetailsTV.setTextColor(Color.WHITE);
-	  firstSectionRightView.addView(dialogDetailsTV); 
-	  
-	  firstSectionView.addView(firstSectionLeftView);
-	  firstSectionView.addView(firstSectionRightView);
+		ImageView iv = new ImageView(appContext);
+		iv.setTag(WidgetsTagName.DIALOG_LOGO);
+		iv.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.FILL_PARENT));
+		iv.setBackgroundColor(Color.DKGRAY);
+		iv.setBackgroundDrawable(dialogIcon);
+		firstSectionLeftView.addView(iv); 
 
-	  LinearLayout buttonViewLL = new LinearLayout(appContext);
-	  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT);
-	  lp.setMargins(0, 10, 0, 0);
-	  buttonViewLL.setLayoutParams(lp);
-	  buttonViewLL.setGravity(Gravity.CENTER);
-	  buttonViewLL.setOrientation(LinearLayout.HORIZONTAL);
-	  buttonViewLL.setWeightSum(1f);
+		layoutparam1 = new LinearLayout.LayoutParams(0,LayoutParams.WRAP_CONTENT,0.8f);
+		LinearLayout firstSectionRightView = new LinearLayout(appContext);
+		firstSectionRightView.setLayoutParams(layoutparam1);
+		firstSectionRightView.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+		firstSectionRightView.setOrientation(LinearLayout.VERTICAL);
 
-	  Button buttonNext = new Button(appContext);
-	  lp = new LinearLayout.LayoutParams(0,(int)(0.1*height),0.5f);
-	  buttonNext.setLayoutParams(lp);
-	  buttonNext.setText(ConstantStrings.ACCEPT);
-	  buttonNext.setTextColor(Color.WHITE);
-	  buttonNext.setTypeface(Typeface.DEFAULT_BOLD);
-	  buttonNext.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL);
-	  buttonNext.setTag(WidgetsTagName.DIALOG_ACCEPT_BUTTONVIEW);
-	  buttonNext.setBackgroundColor(Color.RED);
+		TextView dialogHeaderTV = new TextView(appContext);
+		dialogHeaderTV.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT));
+		dialogHeaderTV.setTag(WidgetsTagName.DIALOG_TOPHEADER_TEXTVIEW);
+		dialogHeaderTV.setText(ConstantStrings.PAY_RUPEES);
+		dialogHeaderTV.setTextSize(20);
+		dialogHeaderTV.setTypeface(Typeface.DEFAULT_BOLD);
+		dialogHeaderTV.setTextColor(Color.WHITE);
+		firstSectionRightView.addView(dialogHeaderTV);
 
-	  buttonViewLL.addView(buttonNext);
+		TextView dialogDetailsTV = new TextView(appContext);
+		dialogDetailsTV.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.WRAP_CONTENT));
+		dialogDetailsTV.setTag(WidgetsTagName.DIALOG_TOPHEADER_DETAIL_TEXTVIEW);
+		dialogDetailsTV.setText(ConstantStrings.THISWILL_CHARGE_YOU_ACCOUNT);
+		dialogDetailsTV.setTextSize(12);
+		dialogDetailsTV.setTypeface(Typeface.DEFAULT_BOLD);
+		dialogDetailsTV.setTextColor(Color.WHITE);
+		firstSectionRightView.addView(dialogDetailsTV); 
 
-	  Button buttonBack = new Button(appContext);
-	  lp = new LinearLayout.LayoutParams(0,(int)(0.1*height),0.5f);
-	  buttonBack.setLayoutParams(lp);
-	  buttonBack.setText(ConstantStrings.CANCEL);
-	  buttonBack.setTextColor(Color.WHITE);
-	  buttonBack.setTypeface(Typeface.DEFAULT_BOLD);
-	  buttonBack.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL);
-	  buttonBack.setTag(WidgetsTagName.DIALOG_CANCLE_BUTTONVIEW);
-	  buttonBack.setBackgroundColor(Color.GREEN);
+		firstSectionView.addView(firstSectionLeftView);
+		firstSectionView.addView(firstSectionRightView);
 
-	  buttonViewLL.addView(buttonBack);
-	  
-	  parentView.addView(tittleSectionInnerView);
-	  parentView.addView(firstSectionView);
-	  parentView.addView(buttonViewLL);
-	  return parentView;
-	 }
+		LinearLayout buttonViewLL = new LinearLayout(appContext);
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.WRAP_CONTENT);
+		//lp.setMargins(0, 10, 0, 0);
+		buttonViewLL.setLayoutParams(lp);
+		buttonViewLL.setGravity(Gravity.CENTER);
+		buttonViewLL.setOrientation(LinearLayout.HORIZONTAL);
+		buttonViewLL.setWeightSum(1f);
+
+		Button buttonNext = new Button(appContext);
+		if(orientation.equalsIgnoreCase("landscape"))
+			lp = new LinearLayout.LayoutParams(0,(int)(0.3*height),0.5f);
+		else
+			lp = new LinearLayout.LayoutParams(0,(int)(0.1*height),0.5f);
+		buttonNext.setLayoutParams(lp);
+		buttonNext.setText(ConstantStrings.ACCEPT);
+		buttonNext.setTextColor(Color.WHITE);
+		buttonNext.setTypeface(Typeface.DEFAULT_BOLD);
+		buttonNext.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL);
+		buttonNext.setTag(WidgetsTagName.DIALOG_ACCEPT_BUTTONVIEW);
+		buttonNext.setBackgroundColor(Color.RED);
+
+		buttonViewLL.addView(buttonNext);
+
+		Button buttonBack = new Button(appContext);
+		if(orientation.equalsIgnoreCase("landscape"))
+			lp = new LinearLayout.LayoutParams(0,(int)(0.3*height),0.5f);
+		else
+			lp = new LinearLayout.LayoutParams(0,(int)(0.1*height),0.5f);
+		buttonBack.setLayoutParams(lp);
+		buttonBack.setText(ConstantStrings.CANCEL);
+		buttonBack.setTextColor(Color.WHITE);
+		buttonBack.setTypeface(Typeface.DEFAULT_BOLD);
+		buttonBack.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL);
+		buttonBack.setTag(WidgetsTagName.DIALOG_CANCLE_BUTTONVIEW);
+		buttonBack.setBackgroundColor(Color.GREEN);
+
+		buttonViewLL.addView(buttonBack);
+
+		parentView.addView(tittleSectionInnerView);
+		parentView.addView(firstSectionView);
+		parentView.addView(buttonViewLL);
+		return parentView;
+	}
 }

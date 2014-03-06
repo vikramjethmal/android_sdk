@@ -9,6 +9,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -28,6 +32,7 @@ import com.qubecell.constants.CheckstatusServerRespCode;
 import com.qubecell.constants.ConstantStrings;
 import com.qubecell.constants.EventChargeServerRespCode;
 import com.qubecell.constants.IntentConstant;
+import com.qubecell.constants.LastAPIStatusServerRespCode;
 import com.qubecell.constants.MerchantData;
 import com.qubecell.constants.MobileOperators;
 import com.qubecell.constants.MsisdnServerRespCode;
@@ -66,6 +71,12 @@ public class BaseActivity extends Activity {
 	protected NetworkController nwObj = null;
 	
 	/**
+	 * Last used RequestId and API name
+	 */
+	public static long lastRequestId;
+	protected String lastAPIName;
+	
+	/**
 	 * This variable is used to check flow of request is through WiFi , GPRS or SMS based.
 	 */
 	protected boolean requestFlow = false;
@@ -87,6 +98,18 @@ public class BaseActivity extends Activity {
 	public static int receiveSmsOnPort ; //To receive sms
 	public static final int SUCCESS = 1;
 	public static final int FAILURE = 0;
+	
+	// OnSavedInstance Tag Value
+	protected final String onSavedMobNumber = "mobNumberTag";
+	protected final String onSavedOprSelected = "oprSelectedTag";
+	protected final String isProDialogVisible = "isDialogVisible";
+	protected final String onSavedUsername = "username";
+	protected final String onSavedPassword = "password";
+	protected final String isAlertPermDiaStr = "isAlertPermDiaStr";
+	protected final String lastAPIStatusCountStr = "lastAPIStatusCount";
+	protected int lastAPIStatusCount = 0;
+	
+	protected boolean isProDiaVisible = false;
 
 	protected Handler handler = new Handler();
 	Runnable progressDiaplay = new Runnable()
@@ -104,6 +127,7 @@ public class BaseActivity extends Activity {
 				intent.putExtra(IntentConstant.PAYMENT_RESULT, PaymentResult.FALIURE);
 				startActivity(intent);
 				finish();
+				
 			}	
 		}
 	};
@@ -127,6 +151,7 @@ public class BaseActivity extends Activity {
 			log = new ELogger();
 			log.setTag(logTag);
 			ELogger.init(ConstantStrings.LOG_FILE_NAME);
+			ELogger.setLogLevel(ELogger.INFO);
 		}
 	}
 
@@ -390,7 +415,7 @@ public class BaseActivity extends Activity {
 		HashMap<String, String> hMap = list.get(0);
 		String locUsername = hMap.get(IntentConstant.USERNAME); 
 		String locPpassword =hMap.get(IntentConstant.PASSWORD); 
-		requestId = String.valueOf(CommonUtility.getRandomNumberBetween());//hMap.get(IntentConstant.REQUEST_ID); 
+		requestId = String.valueOf(CommonUtility.getRandomNumberBetween()); 
 		operator = hMap.get(IntentConstant.OPERATOR_INFO);
 		String merchantProdId = hMap.get(IntentConstant.PRODUCT_ID);
 		String productIdVoda = hMap.get(IntentConstant.VODA_PRODUCT_ID); 
@@ -556,7 +581,7 @@ public class BaseActivity extends Activity {
 		}
 		if(pd == null)
 		{
-			pd = new ProgressDialog(this);
+			pd = new ProgressDialog(BaseActivity.this);
 		}
 		pd.setMessage(msg);
 		// This will cancel the progress bar on back button otherwise set it false
@@ -680,28 +705,33 @@ public class BaseActivity extends Activity {
 		switch (requestType) {
 		case ServerCommand.MSISDN_CMD:
 		{
-			message = MsisdnServerRespCode.getResponseString(getApplicationContext(), bean.getResponsecode());
+			message = MsisdnServerRespCode.getResponseString(bean.getResponsecode());
 		}	
 		break;
 		case ServerCommand.SENDOTP_CMD:
 		{
-			message = SendOTPServerRespCode.getResponseString(getApplicationContext(), bean.getResponsecode());
+			message = SendOTPServerRespCode.getResponseString(bean.getResponsecode());
 		}	
 		break;
 		case ServerCommand.VALIDATEOTP_CMD:
 		{
-			message = ValidateOTPServerRespCode.getResponseString(getApplicationContext(), bean.getResponsecode());
+			message = ValidateOTPServerRespCode.getResponseString(bean.getResponsecode());
 		}	
 		break;
 		case ServerCommand.EVENTCHARGE_CMD:
 		{
-			message = EventChargeServerRespCode.getResponseString(getApplicationContext(), bean.getResponsecode()); 
+			message = EventChargeServerRespCode.getResponseString(bean.getResponsecode()); 
 		}	
 		break;
 		case ServerCommand.CHECK_STATUS_CMD:
 		{
-			message = CheckstatusServerRespCode.getResponseString(getApplicationContext(), bean.getResponsecode()); 
+			message = CheckstatusServerRespCode.getResponseString(bean.getResponsecode()); 
 		}	
+		break;
+		case ServerCommand.GETLASTSTATUS_CDM:
+		{
+			message = LastAPIStatusServerRespCode.getResponseString(bean.getResponsecode());
+		}
 		break;
 		default:
 			break;
@@ -843,6 +873,35 @@ public class BaseActivity extends Activity {
 	public void setChargedAmount (String val) {
 		if(val != null)
 			QubecellResult.chargedAmount = val;
+	}
+	
+	/**
+	 * This method is used to call last requested API Status and take decisions based on that.
+	 */
+	public List<NameValuePair> getLastAPIStatus() {
+		
+		List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
+		String chargeKey = getchargeKey();
+		String md5Str = null;
+		String apirequestid = requestId;
+		requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+		if (chargeKey != null) {
+			md5Str = getMD5(chargeKey + requestId);
+		} else {
+			log.error("getLastAPIStatus() : Authentication key not found..");
+		}
+		
+		String uName = username;
+		String pwd = password;
+		requestParam.add(new BasicNameValuePair(ConstantStrings.USERNAME, uName));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.PASSWORD, pwd));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.REQUESTID, requestId));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.KEY,md5Str));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.API_REQUESTID, apirequestid));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATION,"apistatus"));
+		requestParam.add(new BasicNameValuePair(ConstantStrings.OPERATOR, operator));
+		
+		return requestParam;
 	}
 }
 

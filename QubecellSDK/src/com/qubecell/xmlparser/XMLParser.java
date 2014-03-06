@@ -14,6 +14,7 @@ import android.text.TextUtils;
 
 import com.qubecell.beans.CheckStatusRespBean;
 import com.qubecell.beans.EventChargeRespBean;
+import com.qubecell.beans.LastAPIStatusRespBean;
 import com.qubecell.beans.MsisdnRespBean;
 import com.qubecell.beans.OperatorDetails;
 import com.qubecell.beans.OperatorsRespBean;
@@ -208,6 +209,30 @@ public class XMLParser
 			checkRespBean.setAmount(amount);
 
 			return checkRespBean;
+		}
+		
+		case ServerCommand.GETLASTSTATUS_CDM:
+		{
+			String apimessage = XMLfunctions.getValue(uiHeaderElement, "apimessage");;
+			String apiname = XMLfunctions.getValue(uiHeaderElement, "apiname");;
+			String apirequestid = XMLfunctions.getValue(uiHeaderElement, "apirequestid");;
+			String apiresponsecode = XMLfunctions.getValue(uiHeaderElement, "apiresponsecode");;
+			String apitxnid = XMLfunctions.getValue(uiHeaderElement, "apitxnid");;
+			
+			LastAPIStatusRespBean statusRespBean = new LastAPIStatusRespBean();
+			if(!TextUtils.isEmpty(requestId))
+				statusRespBean.setRequestid(Integer.parseInt(requestId));
+			statusRespBean.setResponsecode(respCode);
+			statusRespBean.setApimessage(apimessage);
+			statusRespBean.setApiname(apiname);
+			if(!TextUtils.isEmpty(apirequestid))
+				statusRespBean.setApirequestid(Integer.parseInt(apirequestid));
+			if(!TextUtils.isEmpty(apiresponsecode))
+				statusRespBean.setApiresponsecode(Integer.parseInt(apiresponsecode));
+			if(!TextUtils.isEmpty(apitxnid))
+				statusRespBean.setApitxnid(Integer.parseInt(apitxnid));
+			
+			return statusRespBean;
 		}
 
 

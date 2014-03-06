@@ -1,5 +1,5 @@
-/**
- * Copyright (c) Adroit HealthTech Pvt Ltd, All Rights Reserved.
+/*
+ * Copyright (C) 2013  Spunk Media Pvt Ltd (www.qubecell.com)
  */
 package com.qubecell.xmlparser;
 
