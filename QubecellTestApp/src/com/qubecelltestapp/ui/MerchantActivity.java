@@ -8,8 +8,9 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.view.View;
+import android.view.View;  
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.qubecell.constants.IntentConstant;
 import com.qubecell.ui.BaseActivity;
@@ -17,25 +18,26 @@ import com.qubecell.ui.BaseActivity;
 public class MerchantActivity extends Activity {
 
 	private Button startButton = null;
+	private final int REQUEST_CODE = 1; 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(getResources().getIdentifier("activity_merchant", "layout", getPackageName()));
-
+  
 		startButton = ((Button)findViewById(getResources().getIdentifier("startbutton", "id", getPackageName())));	
 		startButton.setOnClickListener(new View.OnClickListener() {
 
-			public void onClick(View arg0) 
-			{
+			public void onClick(View arg0)   
+			{  
 				startPayment();			
 			}
-		});
+		});  
 	}
 
 	@Override
 	protected void onResume()
 	{
-		super.onResume();
+		super.onResume();   
 	/*	String info = null;
 		if(BaseActivity.getQubecellStatus())
 		{
@@ -47,7 +49,7 @@ public class MerchantActivity extends Activity {
 		}*/
 		//Toast.makeText(getApplicationContext(), info, Toast.LENGTH_SHORT).show();			
 	}			
-	
+	  
 	private  void startPayment() {
 		Bitmap imageViewBit = BitmapFactory.decodeResource(getResources(), R.drawable.logo_new);
 	    BaseActivity.setLogoImage(imageViewBit);
@@ -78,6 +80,17 @@ public class MerchantActivity extends Activity {
 		hMap.put(IntentConstant.SENDOTP_ERROR_MSG, "I am sendotp error message.");
 		listMap.add(hMap);		    
 		nextActivity.putExtra(IntentConstant.ARRAY_LIST, listMap);
-		startActivity(nextActivity);	
+		startActivityForResult(nextActivity, REQUEST_CODE);
+		//startActivity(nextActivity);	
+	}
+	
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+	    if (resultCode == RESULT_OK && requestCode == REQUEST_CODE) {
+	        if (data.hasExtra("myData1")) {
+	            Toast.makeText(this, data.getExtras().getString("myData1"),
+	                Toast.LENGTH_SHORT).show();
+	        }
+	    }
 	}
 }
