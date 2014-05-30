@@ -4,8 +4,6 @@
 
 package com.qubecell.constants;
 
-import android.content.Context;
-
 public class CheckstatusServerRespCode {
 	public static final int SUCCESS = 101;
 	public static final int AUTHENTICATION_FALIURE = 102;

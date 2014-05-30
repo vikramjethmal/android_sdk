@@ -4,7 +4,6 @@
 
 package com.qubecell.constants;
 
-import android.content.Context;
 
 public class EventChargeServerRespCode {
 

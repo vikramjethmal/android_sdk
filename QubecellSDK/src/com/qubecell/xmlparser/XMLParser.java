@@ -221,21 +221,19 @@ public class XMLParser
 			
 			LastAPIStatusRespBean statusRespBean = new LastAPIStatusRespBean();
 			if(!TextUtils.isEmpty(requestId))
-				statusRespBean.setRequestid(Integer.parseInt(requestId));
+				statusRespBean.setRequestid(Long.parseLong(requestId));
 			statusRespBean.setResponsecode(respCode);
 			statusRespBean.setApimessage(apimessage);
 			statusRespBean.setApiname(apiname);
 			if(!TextUtils.isEmpty(apirequestid))
-				statusRespBean.setApirequestid(Integer.parseInt(apirequestid));
+				statusRespBean.setApirequestid(Long.parseLong(apirequestid));
 			if(!TextUtils.isEmpty(apiresponsecode))
 				statusRespBean.setApiresponsecode(Integer.parseInt(apiresponsecode));
 			if(!TextUtils.isEmpty(apitxnid))
-				statusRespBean.setApitxnid(Integer.parseInt(apitxnid));
+				statusRespBean.setApitxnid(apitxnid);
 			
 			return statusRespBean;
 		}
-
-
 		default:
 		{
 			log.error("getResponseBean() : Unknown switch case");

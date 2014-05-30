@@ -166,7 +166,7 @@ public class SelectOperatorActivity extends BaseActivity implements TaskFragment
 			}
 			log.info("nextButtonClick() : Operator selected is : "+ operatorSelected);
 			List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
-			requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+			requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.EVENTCHARGE_CMD));
 			String chargeKey = getchargeKey();
 			String md5Str = null;
 			if(chargeKey != null)
@@ -337,6 +337,11 @@ public class SelectOperatorActivity extends BaseActivity implements TaskFragment
 					}
 					intent.putExtra(IntentConstant.KEY, chargeKey);
 					intent.putExtra(IntentConstant.TRANSACTION_ID, txnId);
+					if(TextUtils.isEmpty(msisdn))
+					{
+						EditText mobileEditText = ((EditText)operatorLayoutView.findViewWithTag(WidgetsTagName.OPERATOR_EDITTEXT));
+						msisdn = mobileEditText.getText().toString();
+					}
 					intent.putExtra(IntentConstant.MSISDN, msisdn);
 					startActivity(intent);
 					finish();
@@ -357,9 +362,13 @@ public class SelectOperatorActivity extends BaseActivity implements TaskFragment
 						log.error("Authentication key not found...");
 					}
 					intent.putExtra(IntentConstant.TRANSACTION_ID, sendOTPRespBean.getTxnid());
+					if(TextUtils.isEmpty(msisdn))
+					{
+						EditText mobileEditText = ((EditText)operatorLayoutView.findViewWithTag(WidgetsTagName.OPERATOR_EDITTEXT));
+						msisdn = mobileEditText.getText().toString();
+					}
 					intent.putExtra(IntentConstant.MSISDN, msisdn);
 					startActivity(intent);
-					
 					finish();
 				}
 				break;
@@ -381,16 +390,18 @@ public class SelectOperatorActivity extends BaseActivity implements TaskFragment
 			}
 			else
 			{
-				if(lastAPIStatusCount < 3)
+				if(requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3)
 				{
-					lastAPIStatusCount = lastAPIStatusCount + 1;
-					mTaskFragment.initTaskFlag();
-					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
-				
 					if(lastAPIStatusCount == 2)
 					{
 						Toast.makeText(getApplicationContext(), getCommandErrorMessage(requestType, respBean), Toast.LENGTH_LONG).show();
 						finish();
+					}
+					else
+					{
+						lastAPIStatusCount = lastAPIStatusCount + 1;
+						mTaskFragment.initTaskFlag();
+						mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
 					}
 				}
 				else

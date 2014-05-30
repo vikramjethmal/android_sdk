@@ -8,12 +8,12 @@ package com.qubecell.beans;
 public class LastAPIStatusRespBean extends ResponseBaseBean {
 
 	private String apiname = "";
-	private int requestid;
+	private long requestid;
 	private int responsecode;
-	private int apirequestid;
+	private long apirequestid;
 	private int apiresponsecode;
 	private String apimessage = "";
-	private int apitxnid;
+	private String apitxnid;
 	private String apiproductid;
 	private String apimsisdn;
 	private float apiamount;
@@ -69,12 +69,7 @@ public class LastAPIStatusRespBean extends ResponseBaseBean {
 	public void setResponsecode(int responsecode) {
 		this.responsecode = responsecode;
 	}
-	public int getApirequestid() {
-		return apirequestid;
-	}
-	public void setApirequestid(int apirequestid) {
-		this.apirequestid = apirequestid;
-	}
+	
 	public int getApiresponsecode() {
 		return apiresponsecode;
 	}
@@ -87,16 +82,23 @@ public class LastAPIStatusRespBean extends ResponseBaseBean {
 	public void setApimessage(String apimessage) {
 		this.apimessage = apimessage;
 	}
-	public int getApitxnid() {
-		return apitxnid;
-	}
-	public void setApitxnid(int apitxnid) {
-		this.apitxnid = apitxnid;
-	}
-	public int getRequestid() {
+	public long getRequestid() {
 		return requestid;
 	}
-	public void setRequestid(int requestid) {
+	public void setRequestid(long requestid) {
 		this.requestid = requestid;
 	}
+	public long getApirequestid() {
+		return apirequestid;
+	}
+	public void setApirequestid(long apirequestid) {
+		this.apirequestid = apirequestid;
+	}
+	public String getApitxnid() {
+		return apitxnid;
+	}
+	public void setApitxnid(String apitxnid) {
+		this.apitxnid = apitxnid;
+	}
+	
 }

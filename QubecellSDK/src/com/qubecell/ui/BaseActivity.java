@@ -415,7 +415,7 @@ public class BaseActivity extends Activity {
 		HashMap<String, String> hMap = list.get(0);
 		String locUsername = hMap.get(IntentConstant.USERNAME); 
 		String locPpassword =hMap.get(IntentConstant.PASSWORD); 
-		requestId = String.valueOf(CommonUtility.getRandomNumberBetween()); 
+		requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.MSISDN_CMD)); 
 		operator = hMap.get(IntentConstant.OPERATOR_INFO);
 		String merchantProdId = hMap.get(IntentConstant.PRODUCT_ID);
 		String productIdVoda = hMap.get(IntentConstant.VODA_PRODUCT_ID); 
@@ -592,6 +592,23 @@ public class BaseActivity extends Activity {
 		}
 	}
 
+	/**
+	 * This method is used to check whether Progress dialog is showing or not.
+	 * @return
+	 */
+	public boolean isProgressDialogShowing()
+	{
+		boolean isShowing = false;
+		
+		if(pd == null)
+			return isShowing;
+		
+		if(pd.isShowing())
+			isShowing = true;
+		
+		return isShowing;
+	}
+	
 	/**
 	 * This function will dismiss progress dialogue with given message 
 	 * @param msg String 
@@ -884,7 +901,7 @@ public class BaseActivity extends Activity {
 		String chargeKey = getchargeKey();
 		String md5Str = null;
 		String apirequestid = requestId;
-		requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+		requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.GETLASTSTATUS_CDM));
 		if (chargeKey != null) {
 			md5Str = getMD5(chargeKey + requestId);
 		} else {

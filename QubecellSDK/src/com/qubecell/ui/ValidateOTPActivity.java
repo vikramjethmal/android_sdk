@@ -40,8 +40,6 @@ import com.qubecell.constants.PaymentResult;
 import com.qubecell.constants.ServerCommand;
 import com.qubecell.constants.WidgetsTagName;
 import com.qubecell.elogger.ELogger;
-import com.qubecell.network.AsyncClient;
-import com.qubecell.network.NetworkController;
 import com.qubecell.smsmgr.QubecellSMSManager;
 import com.qubecell.utility.CommonUtility;
 import com.qubecell.xmlparser.XMLParser;
@@ -86,6 +84,8 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 			resendCount = savedInstanceState.getInt(onSavedResendOtpCount);
 			lastAPIStatusCount = savedInstanceState.getInt(lastAPIStatusCountStr);
 			isProDiaVisible = savedInstanceState.getBoolean(isProDialogVisible);
+			transactionId = savedInstanceState.getString("TRANSACTION_ID");
+			msisdn = savedInstanceState.getString("MSISDN");
 		}
 
 		FragmentManager fm = getFragmentManager();
@@ -122,6 +122,8 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 		saveData.putInt(onSavedResendOtpCount, resendOtpCount);
 		saveData.putInt(lastAPIStatusCountStr, lastAPIStatusCount);
 		saveData.putBoolean(isProDialogVisible, isProDiaVisible);
+		saveData.putString("TRANSACTION_ID", transactionId);
+		saveData.putString("MSISDN", msisdn);
 		return;
 	}
 
@@ -209,8 +211,8 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 		operator = intent.getStringExtra(IntentConstant.OPERATOR_INFO);
 		username = getUsername(); 
 		password = getPassword();
-		//log.info("getTransIntentData() TransId : "+transactionId+" , MSISDN : "+ msisdn+", Operator : "+operator);
-		//log.info("getTransIntentData() Username : "+ username +", Password  : " +password);
+		log.info("getTransIntentData() TransId : "+transactionId+" , MSISDN : "+ msisdn+", Operator : "+operator);
+		log.info("getTransIntentData() Username : "+ username +", Password  : " +password);
 		//return;
 	}
 
@@ -283,7 +285,7 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 				else
 				{
 					List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
-					requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+					requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.EVENTCHARGE_CMD));
 					String chargeKey = getchargeKey();
 					String md5Str = null;
 					if(chargeKey != null)
@@ -352,7 +354,6 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 			public void onClick(View arg0) 
 			{
 				log.info("Inside Next Button Click Event");
-				
 				dismissProgressDialogue();
 				isProDiaVisible = false;
 				String validateCodeStr = validateCode.getText().toString();
@@ -381,7 +382,7 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 					{
 						log.info("nextButtonClick() : OTP code is : "+ validateCodeStr);
 						List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
-						requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+						requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.VALIDATEOTP_CMD));
 						String chargeKey = getchargeKey();
 						String md5Str = null;
 						if(chargeKey != null)
@@ -394,6 +395,7 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 						}
 						if((operator == null) || (msisdn == null) || (transactionId == null))
 						{
+							log.error("ValidateOtp:: mendatory parameters : Operator : "+ operator + "msisdn : "+ msisdn + " TransactionId  : "+transactionId);
 							log.error("ValidateOtp:: mendatory parameters not found.");
 							return;
 						}
@@ -484,7 +486,7 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 					else
 					{
 						List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
-						requestId = String.valueOf(CommonUtility.getRandomNumberBetween());
+						requestId = String.valueOf(CommonUtility.getRandomNumberBetween(ServerCommand.EVENTCHARGE_CMD));
 						String chargeKey = getchargeKey();
 						String md5Str = null;
 						if(chargeKey != null)
@@ -591,11 +593,11 @@ public class ValidateOTPActivity extends BaseActivity implements TaskFragment.Ta
 		}
 		else
 		{
-
 			if (requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3) 
 			{
 				// TODO Calling getLastAPI status 
 				lastAPIStatusCount = lastAPIStatusCount + 1;
+				mTaskFragment.initTaskFlag();
 				mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
 			}
 			else

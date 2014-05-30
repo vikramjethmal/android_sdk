@@ -4,8 +4,6 @@
 
 package com.qubecell.constants;
 
-import android.content.Context;
-
 public class SendOTPServerRespCode {
 
 	public static final int SUCCESS = 101;

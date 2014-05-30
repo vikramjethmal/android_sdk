@@ -21,6 +21,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 
@@ -121,6 +122,7 @@ public class NetworkController
 				}
 
 				DefaultHttpClient httpClient = new DefaultHttpClient(basicHttpParams);
+				httpClient.setHttpRequestRetryHandler(new DefaultHttpRequestRetryHandler(0, false));
 				HttpResponse response = null;
 				try 
 				{

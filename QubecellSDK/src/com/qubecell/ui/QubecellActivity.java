@@ -6,14 +6,14 @@ package com.qubecell.ui;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
+
 import android.app.Dialog;
 import android.app.FragmentManager;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.Configuration;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -21,7 +21,6 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout.LayoutParams;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,7 +44,6 @@ import com.qubecell.constants.QubecellResult;
 import com.qubecell.constants.ServerCommand;
 import com.qubecell.constants.WidgetsTagName;
 import com.qubecell.elogger.ELogger;
-import com.qubecell.network.AsyncClient;
 import com.qubecell.network.NetworkController;
 import com.qubecell.smsmgr.QubecellSMSManager;
 import com.qubecell.utility.CommonUtility;
@@ -66,6 +64,8 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 	private Button acceptButton = null;
 	private Button cancelButton = null;
 	protected ArrayList<OperatorDetails> operatorList = null;
+	private boolean progLoadingVisible = false;
+	private boolean alertPermDiaVisible = false;
 	private boolean isAlertPermDiaVisible = false;
 	private String msisdn;
 	private TaskFragment mTaskFragment;
@@ -138,7 +138,7 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 				{
 					List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
 					requestId = String.valueOf(CommonUtility
-							.getRandomNumberBetween());
+							.getRandomNumberBetween(ServerCommand.EVENTCHARGE_CMD));
 					String chargeKey = getchargeKey();
 					String md5Str = null;
 					if (chargeKey != null) {
@@ -177,6 +177,44 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 			showProgressDialogue("In Progress ...");
 	}
 	
+	@Override
+	protected void onResume() {
+		// TODO Auto-generated method stub
+		super.onResume();
+		if(alertPermDiaVisible == true)
+		{
+			dismissProgressDialogue();
+			showEventChargeDialogPermission(null,ServerCommand.NONE_CMD);
+		}
+		else if(progLoadingVisible == true)
+		{
+			if(!isAlertDialogShowing())
+				showProgressDialogue("Loading...");
+		}
+
+		else
+		{
+			log.info("onResume() : Nothing is visible ");
+		}
+		progLoadingVisible = false;
+		alertPermDiaVisible = false;
+	}
+	
+	@Override
+	protected void onPause() {
+		// TODO Auto-generated method stub
+		super.onPause();
+		progLoadingVisible = isProgressDialogShowing();
+		alertPermDiaVisible = isAlertDialogShowing();
+	}
+	
+	@Override
+	protected void onDestroy() {
+		// TODO Auto-generated method stub
+		super.onDestroy();
+		progLoadingVisible = isProgressDialogShowing();
+		alertPermDiaVisible = isAlertDialogShowing();
+	}
 	@Override
 	protected void onSaveInstanceState(Bundle saveData) {
 		// TODO Auto-generated method stub
@@ -302,6 +340,8 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 						ConstantStrings.USERNAME, msisdnUsername));
 				requestParam.add(new BasicNameValuePair(
 						ConstantStrings.PASSWORD, msisdnPassword));
+				requestId = String.valueOf(CommonUtility
+						.getRandomNumberBetween(ServerCommand.MSISDN_CMD));				
 				requestParam.add(new BasicNameValuePair(
 						ConstantStrings.REQUESTID, requestId));
 				String md5Str = getMD5(msisdnKey + requestId);
@@ -309,12 +349,11 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 						md5Str));
 				requestParam.add(new BasicNameValuePair(
 						ConstantStrings.RETURNURL, ""));
-				//makeNetworkRequest(requestParam, ServerCommand.MSISDN_CMD);
 				showProgressDialogue("In Progress ...");
 				isProDiaVisible = true;
 				log.info("detectMsisdnForOperator() : Request sent to server");
 				mTaskFragment.executeRequest(requestParam, ServerCommand.MSISDN_CMD);
-							}
+			}
 		} 
 		else if (isWiFiActive) 
 		{
@@ -427,7 +466,7 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 					MsisdnRespBean msisdnBean = (MsisdnRespBean) respBean;
 					List<NameValuePair> requestParam = new ArrayList<NameValuePair>();
 					requestId = String.valueOf(CommonUtility
-							.getRandomNumberBetween());
+							.getRandomNumberBetween(ServerCommand.MSISDN_CMD));
 					String chargeKey = getchargeKey();
 					String md5Str = null;
 					if (chargeKey != null) {
@@ -545,15 +584,17 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 				
 				if (requestType == ServerCommand.GETLASTSTATUS_CDM && lastAPIStatusCount < 3) 
 				{
-					// TODO Calling getLastAPI status 
-					lastAPIStatusCount = lastAPIStatusCount + 1;
-					mTaskFragment.initTaskFlag();
-					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
-					
 					if(lastAPIStatusCount == 2)
 					{
 						Toast.makeText(getApplicationContext(), getCommandErrorMessage(requestType, respBean), Toast.LENGTH_LONG).show();
 						finish();
+					}
+					else
+					{
+						// TODO Calling getLastAPI status 
+						lastAPIStatusCount = lastAPIStatusCount + 1;
+						mTaskFragment.initTaskFlag();
+						mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
 					}
 				} 
 				else 
@@ -562,6 +603,7 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 					{
 						lastAPIStatusCount = lastAPIStatusCount + 1;
 						mTaskFragment.initTaskFlag();
+						//Toast.makeText(getApplicationContext(), "Calling API Status Request", Toast.LENGTH_LONG).show();
 						mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
 					}
 					else
@@ -597,16 +639,18 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 			log.error("handleServerResponse Fail to get MSISDN server responce");
 			if (MerchantData.flow.equalsIgnoreCase(MerchantData.event_charge)) 
 			{
-				if (result.netRespCode == NetworkResponseCode.NET_REQ_TIMEOUT) 
-				{
+				/*if (result.netRespCode == NetworkResponseCode.NET_REQ_TIMEOUT) 
+				{*/
 					log.info("handleServerResponse() : Starting SelectOperator Screen because of Connection Time Out or Socket Time Out");
 					startNextActivity();
 					
-				}
+				/*}
 				else 
 				{
+					showProgressDialogue("Loading");
+					mTaskFragment.initTaskFlag();
 					mTaskFragment.executeRequest(getLastAPIStatus(), ServerCommand.GETLASTSTATUS_CDM);
-				}
+				}*/
 			}
 			else 
 			{
@@ -663,6 +707,23 @@ public class QubecellActivity extends BaseActivity implements TaskFragment.TaskC
 				finish();
 			}
 		});
+	}
+	
+	/**
+	 * This method method is used to check whether Permission dialog is showing or not. 
+	 * @return
+	 */
+	private boolean isAlertDialogShowing()
+	{
+		boolean isShowing = false;
+		
+		if(permissionDialog == null)
+			return isShowing;
+		
+		if(permissionDialog.isShowing())
+			isShowing = true;
+		
+		return isShowing;
 	}
 
 	/**

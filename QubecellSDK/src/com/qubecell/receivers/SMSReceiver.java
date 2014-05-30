@@ -12,7 +12,6 @@ import android.telephony.SmsMessage;
 
 import com.qubecell.constants.IntentConstant;
 import com.qubecell.constants.MessageResponseCode;
-import com.qubecell.constants.MsisdnServerRespCode;
 import com.qubecell.constants.PaymentResult;
 import com.qubecell.elogger.ELogger;
 import com.qubecell.ui.BaseActivity;

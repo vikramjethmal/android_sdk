@@ -6,6 +6,7 @@ package com.qubecell.utility;
 
 import java.lang.reflect.Method;
 import java.util.Calendar;
+import java.util.Date;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -31,6 +32,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.qubecell.constants.ConstantStrings;
+import com.qubecell.constants.ServerCommand;
 import com.qubecell.constants.WidgetsTagName;
 import com.qubecell.ui.BaseActivity;
 
@@ -138,15 +140,16 @@ public class CommonUtility {
 	/**
 	 * This method is used to generate random number between given range.
 	 */
-	public static long getRandomNumberBetween() 
+	public static long getRandomNumberBetween(int apiCommand) 
 	{
-		Calendar rightNow = Calendar.getInstance();
+		/*Calendar rightNow = Calendar.getInstance();
 		long offset = rightNow.get(Calendar.ZONE_OFFSET) +
 				rightNow.get(Calendar.DST_OFFSET);
 		long sinceMidnight = (rightNow.getTimeInMillis() + offset) %
-				(24 * 60 * 60 * 1000);
-
-		BaseActivity.lastRequestId = sinceMidnight;
+				(24 * 60 * 60 * 1000);*/
+		long sinceMidnight = new Date().getTime();
+		if(apiCommand != ServerCommand.GETLASTSTATUS_CDM)
+			BaseActivity.lastRequestId = sinceMidnight;
 		return sinceMidnight ;
 	}
 
